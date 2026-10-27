@@ -1,0 +1,62 @@
+# Publishes the admin dashboard (soul-sync/admin) to GitHub Pages.
+# The Supabase URL and *anon* key are public by design; the dashboard only
+# shows data to accounts with profiles.is_admin = true. The service_role key
+# is never fetched or written.
+#
+# One-time setup: Settings → Pages → Source: "GitHub Actions".
+name: Publish admin dashboard
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'soul-sync/admin/**'
+      - '.github/workflows/admin-pages.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  SUPABASE_PROJECT_REF: qzanlsxbaxlmmakvloge
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Write config.js with the public anon key
+        working-directory: soul-sync/admin
+        run: |
+          anon=$(supabase projects api-keys --project-ref "$SUPABASE_PROJECT_REF" -o json \
+            | jq -r '[.[] | select(.name == "anon")][0].api_key')
+          if [ -z "$anon" ] || [ "$anon" = "null" ]; then echo "::error::Could not read the anon key"; exit 1; fi
+          cat > config.js <<JS
+          window.SOUL_SYNC_CONFIG = {
+            supabaseUrl: 'https://$SUPABASE_PROJECT_REF.supabase.co',
+            supabaseAnonKey: '$anon',
+          };
+          JS
+          node --check config.js
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: soul-sync/admin
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
