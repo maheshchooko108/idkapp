@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Soul Sync Admin</title>
+  <style>
+    :root {
+      --bg: #f7f3ee; --surface: #fff; --text: #1f1a15; --muted: #6b6158; --accent: #7a5c3e;
+      --border: #e2d8cc; --good: #3f7d5a; --warn: #b3412e;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #141210; --surface: #1e1b18; --text: #f3eee8; --muted: #a99f94; --accent: #d8b48a; --border: #36302a; --good: #7cc39a; --warn: #f08a78; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    main { max-width: 1080px; margin: 0 auto; padding: 24px 16px 64px; }
+    h1 { font-size: 28px; margin: 0 0 4px; }
+    h2 { font-size: 18px; margin: 32px 0 12px; }
+    .muted { color: var(--muted); }
+    .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+    .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+    .tile .label { font-size: 13px; color: var(--muted); }
+    .tile .value { font-size: 30px; font-weight: 700; margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
+    .tile .sub { font-size: 13px; color: var(--muted); }
+    .ok { color: var(--good); } .bad { color: var(--warn); }
+    textarea { width: 100%; min-height: 360px; font: 14px/1.5 ui-monospace, Menlo, monospace; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+    input, select, button { font: inherit; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); min-height: 44px; }
+    button.primary { background: var(--accent); color: var(--bg); border: 0; font-weight: 600; cursor: pointer; }
+    button { cursor: pointer; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .bars { display: flex; align-items: flex-end; gap: 3px; height: 80px; }
+    .bars div { flex: 1; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    td, th { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); }
+    .hidden { display: none; }
+    #status { min-height: 20px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Soul Sync · Pilot dashboard</h1>
+  <p class="muted">Wellness and self-reflection tool, not medical advice. Small-n pilot: treat rates as signals, not proof.</p>
+
+  <section id="login" class="tile hidden">
+    <h2 style="margin-top:0">Admin sign-in</h2>
+    <form id="login-form" class="row">
+      <input id="email" type="email" placeholder="email" autocomplete="username" required />
+      <input id="password" type="password" placeholder="password" autocomplete="current-password" required />
+      <button class="primary" type="submit">Sign in</button>
+    </form>
+  </section>
+
+  <section id="app" class="hidden">
+    <div class="row" style="justify-content:space-between;margin-top:16px">
+      <div class="row">
+        <label for="window" class="muted">Window</label>
+        <select id="window"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option></select>
+        <button id="refresh">Refresh</button>
+      </div>
+      <button id="signout">Sign out</button>
+    </div>
+
+    <h2>Adoption</h2>
+    <div class="grid" id="adoption"></div>
+    <h2>Engagement</h2>
+    <div class="grid" id="engagement"></div>
+    <h2>Outcomes</h2>
+    <div class="grid" id="outcomes"></div>
+
+    <h2>Daily active users</h2>
+    <div class="tile"><div class="bars" id="dau" role="img" aria-label="Daily active users"></div></div>
+
+    <h2>Engine prompt</h2>
+    <div class="tile">
+      <p class="muted" style="margin-top:0">Changes apply to the next card generated. Every save is versioned; cards record the version that wrote them. Safety guardrails are appended in code and can't be removed here.</p>
+      <div class="row" style="margin-bottom:12px">
+        <label for="model">Model</label><input id="model" size="22" />
+        <label for="effort">Effort</label>
+        <select id="effort"><option>low</option><option>medium</option><option>high</option></select>
+      </div>
+      <textarea id="prompt" spellcheck="false"></textarea>
+      <div class="row" style="margin-top:12px">
+        <button class="primary" id="save">Save new version</button>
+        <button id="reset">Load original default</button>
+        <span id="status" class="muted"></span>
+      </div>
+    </div>
+
+    <h2>"It helped" by prompt version</h2>
+    <div class="tile"><table id="versions"><thead><tr><th>Version</th><th>Model</th><th>Saved</th><th>Cards</th><th>Answers</th><th>Helped (yes)</th></tr></thead><tbody></tbody></table></div>
+  </section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

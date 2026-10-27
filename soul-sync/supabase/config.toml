@@ -1,0 +1,16 @@
+project_id = "soul-sync"
+
+[auth]
+enabled = true
+site_url = "soulsync://"
+# Onboarding gives a reading before any sign-up form: the app starts with an
+# anonymous session and the user can attach an email later in "You".
+enable_anonymous_sign_ins = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+[functions.push-cards]
+# Called by pg_cron with a shared secret, not a user JWT.
+verify_jwt = false
