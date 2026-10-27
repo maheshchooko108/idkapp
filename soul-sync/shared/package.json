@@ -1,0 +1,9 @@
+{
+  "name": "@soul-sync/shared",
+  "private": true,
+  "type": "module",
+  "description": "Pure TypeScript core shared by the app and the Supabase edge functions. No dependencies.",
+  "scripts": {
+    "test": "node --test --experimental-strip-types --no-warnings test/*.test.ts"
+  }
+}
