@@ -40,8 +40,8 @@ jobs:
       - name: Recent card-engine log lines (warnings and errors)
         run: |
           start=$(date -u -d '-2 hours' +%Y-%m-%dT%H:%M:%SZ)
-          sql="select timestamp, event_message from function_logs where metadata[0].level in ('error','warning') or event_message like '%fail%' order by timestamp desc limit 30"
-          curl -sS -G "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/analytics/endpoints/logs.all" \
+          sql="select timestamp, event_message from function_logs order by timestamp desc limit 40"
+          curl -sS -G "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/analytics/endpoints/logs" \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
             --data-urlencode "iso_timestamp_start=$start" --data-urlencode "sql=$sql" > logs.json
           jq -r '.result[]? | "\(.timestamp) \(.event_message)"' logs.json | cut -c1-600

@@ -20,7 +20,7 @@ function RootStack() {
   }, [session]);
 
   if (!ready) return <Loading label="Getting your space ready" />;
-  if (error && !session) {
+  if (error && !profile) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', padding: space.xl, gap: space.lg, backgroundColor: c.bg }}>
         <Title>We couldn't connect</Title>

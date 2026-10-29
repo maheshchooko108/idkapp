@@ -38,6 +38,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    // A stalled request must never leave people on a spinner: give up after
+    // 15 s and show the retry screen instead.
+    const watchdog = setTimeout(() => {
+      if (cancelled) return;
+      cancelled = true;
+      setError('This is taking longer than it should.');
+      setReady(true);
+    }, 15_000);
     (async () => {
       try {
         let { data } = await supabase.auth.getSession();
@@ -58,12 +66,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       } finally {
-        if (!cancelled) setReady(true);
+        if (!cancelled) {
+          clearTimeout(watchdog);
+          setReady(true);
+        }
       }
     })();
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
     return () => {
       cancelled = true;
+      clearTimeout(watchdog);
       sub.subscription.unsubscribe();
     };
   }, [attempt]);
