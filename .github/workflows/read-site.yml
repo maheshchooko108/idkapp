@@ -16,7 +16,7 @@ on:
         default: read
       start:
         description: Start button text (walk mode)
-        default: "I'm Ready"
+        default: Find my pattern
 
 
 jobs:
