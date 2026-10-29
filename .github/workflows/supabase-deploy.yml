@@ -48,6 +48,13 @@ jobs:
       - name: Shared core tests (also checks the function copies are in sync)
         run: cd shared && npm test
 
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Vedic chart matches Swiss Ephemeris (400 reference charts)
+        run: deno test --allow-read supabase/tests/vedic.test.ts
+
       - uses: supabase/setup-cli@v1
         with:
           version: latest

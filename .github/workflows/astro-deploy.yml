@@ -1,5 +1,7 @@
-# Deploys the Swiss Ephemeris astro service (soul-sync/astro) to Fly.io and
-# points the Supabase card engine at it.
+# OPTIONAL. Cards already compute charts in-process (supabase/functions/
+# _shared/vedic.ts, tested against Swiss Ephemeris). Run this only if you want
+# the Swiss Ephemeris service itself live: it deploys soul-sync/astro to
+# Fly.io and points the Supabase card engine at it.
 #
 # Needs one more repository secret: FLY_API_TOKEN (fly.io → Account →
 # Access Tokens). Uses the existing SUPABASE_ACCESS_TOKEN to set the engine's
@@ -11,11 +13,6 @@ name: Deploy astro service
 
 on:
   workflow_dispatch:
-  push:
-    branches: [master]
-    paths:
-      - 'soul-sync/astro/**'
-      - '.github/workflows/astro-deploy.yml'
 
 concurrency:
   group: astro-deploy
