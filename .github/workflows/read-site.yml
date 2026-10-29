@@ -28,4 +28,7 @@ jobs:
           npx playwright install --with-deps chromium >/dev/null
       - name: Read the site
         working-directory: soul-sync/e2e
-        run: node read-site.mjs "${{ inputs.url }}" "${{ inputs.pages }}"
+        env:
+          SITE_URL: ${{ inputs.url }}
+          MAX_PAGES: ${{ inputs.pages }}
+        run: node read-site.mjs "$SITE_URL" "$MAX_PAGES"
