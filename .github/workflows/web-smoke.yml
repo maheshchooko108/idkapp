@@ -1,0 +1,24 @@
+# Manual check of the published web preview against the live backend.
+# Read the results in the run's log.
+name: Web preview smoke test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        working-directory: soul-sync/e2e
+        run: |
+          npm init -y >/dev/null
+          npm i playwright@1 >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+      - name: Walk onboarding on the live site
+        working-directory: soul-sync/e2e
+        run: node live-smoke.mjs https://maheshchooko108.github.io/idkapp/app/
