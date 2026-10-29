@@ -2,7 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 
 import type { CardAction, DailyCard } from '@shared/card.ts';
@@ -176,7 +176,7 @@ export default function Today() {
           <Callout muted center>
             {card.status === 'done' ? 'Close the app and go live your day.' : 'See you tomorrow. No catching up required.'}
           </Callout>
-          {card.status === 'done' && <Button variant="secondary" label="Share my card" onPress={share} />}
+          {card.status === 'done' && Platform.OS !== 'web' && <Button variant="secondary" label="Share my card" onPress={share} />}
         </Card>
       )}
 

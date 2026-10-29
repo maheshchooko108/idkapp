@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { Platform } from 'react-native';
 
 import { DateTimeField, fromHhMm, toHhMm } from '@/components/DateTimeField';
 import { Body, Button, Callout, Footnote, Screen, ScaleRow, Title } from '@/components/ui';
@@ -22,7 +23,11 @@ export default function Rhythm() {
       if (withNotification) {
         const ok = await enableDailyCard(toHhMm(time));
         if (!ok) {
-          setNote('Notifications are off. You can turn them on later in Settings; your card is always waiting in the app.');
+          setNote(
+            Platform.OS === 'web'
+              ? 'Daily notifications come with the iPhone app. In this web preview, your card is waiting each time you open it.'
+              : 'Notifications are off. You can turn them on later in Settings; your card is always waiting in the app.',
+          );
           return;
         }
       }

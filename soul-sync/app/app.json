@@ -36,7 +36,9 @@
       "@react-native-community/datetimepicker",
       [
         "expo-notifications",
-        { "color": "#7A5C3E" }
+        {
+          "color": "#7A5C3E"
+        }
       ],
       [
         "@kingstinct/react-native-healthkit",
@@ -50,15 +52,28 @@
       [
         "expo-build-properties",
         {
-          "android": { "minSdkVersion": 26 }
+          "android": {
+            "minSdkVersion": 26
+          }
         }
       ]
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "baseUrl": "/idkapp/app"
     },
     "extra": {
-      "eas": { "projectId": "REPLACE_WITH_EAS_PROJECT_ID" }
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      }
+    },
+    "web": {
+      "output": "single",
+      "bundler": "metro",
+      "name": "Soul Sync",
+      "shortName": "Soul Sync",
+      "themeColor": "#7A5C3E",
+      "backgroundColor": "#F7F3EE"
     }
   }
 }
