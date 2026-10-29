@@ -37,12 +37,20 @@ jobs:
     needs: smoke
     if: always()
     steps:
-      - name: Recent card-engine log lines (warnings and errors)
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Edge-function secrets the card engine can see (names only)
+        run: supabase secrets list --project-ref "$SUPABASE_PROJECT_REF" | cut -d'|' -f1
+      - name: Recent card-engine log lines
         run: |
           start=$(date -u -d '-2 hours' +%Y-%m-%dT%H:%M:%SZ)
-          sql="select timestamp, event_message from function_logs order by timestamp desc limit 40"
-          curl -sS -G "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/analytics/endpoints/logs" \
-            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-            --data-urlencode "iso_timestamp_start=$start" --data-urlencode "sql=$sql" > logs.json
-          jq -r '.result[]? | "\(.timestamp) \(.event_message)"' logs.json | cut -c1-600
-          echo "--- raw (first 1500 chars) ---"; head -c 1500 logs.json; echo
+          for table in function_logs edge_logs; do
+            echo "=== $table ==="
+            sql="select timestamp, event_message from $table order by timestamp desc limit 25"
+            curl -sS -G "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/analytics/endpoints/logs" \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+              --data-urlencode "iso_timestamp_start=$start" --data-urlencode "sql=$sql" > logs.json
+            jq -r '.result[]? | "\(.timestamp) \(.event_message)"' logs.json | cut -c1-400
+            jq -r '.error // empty' logs.json
+          done
