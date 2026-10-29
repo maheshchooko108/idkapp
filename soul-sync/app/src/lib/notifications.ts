@@ -18,7 +18,8 @@ Notifications.setNotificationHandler({
 
 /** Ask for permission in context (from the "daily card" toggle) and store the push token. */
 export async function enableDailyCard(notifyTime: string): Promise<boolean> {
-  if (!Device.isDevice) return false;
+  // The web preview has no push channel; the card waits in the app instead.
+  if (Platform.OS === 'web' || !Device.isDevice) return false;
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('daily-card', {
       name: 'Daily card',

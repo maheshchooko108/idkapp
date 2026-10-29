@@ -2,6 +2,7 @@
 // only ever sees the signed-in user's rows.
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 
 import type { CardAction, DailyCard } from '@shared/card.ts';
 import type { CrisisResource } from '@shared/crisis.ts';
@@ -168,10 +169,21 @@ export async function exportMyData() {
     if (error) throw error;
     out[t] = data;
   }
-  const file = new File(Paths.cache, `soul-sync-export-${today()}.json`);
+  const json = JSON.stringify(out, null, 2);
+  const name = `soul-sync-export-${today()}.json`;
+  if (Platform.OS === 'web') {
+    // Browser preview: hand the file straight to the browser's downloads.
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    return;
+  }
+  const file = new File(Paths.cache, name);
   if (file.exists) file.delete();
   file.create();
-  file.write(JSON.stringify(out, null, 2));
+  file.write(json);
   await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: 'Your Soul Sync data' });
 }
 

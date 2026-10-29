@@ -1,10 +1,12 @@
-# Publishes the admin dashboard (soul-sync/admin) to GitHub Pages.
-# The Supabase URL and *anon* key are public by design; the dashboard only
-# shows data to accounts with profiles.is_admin = true. The service_role key
-# is never fetched or written.
+# Publishes to GitHub Pages:
+#   /      the admin dashboard (soul-sync/admin)
+#   /app/  a web preview of the app (soul-sync/app, Expo web export)
+# The Supabase URL and *anon* key are public by design; row-level security
+# limits every user to their own rows and the dashboard to admins. The
+# service_role key is never fetched or written.
 #
 # One-time setup: Settings → Pages → Source: "GitHub Actions".
-name: Publish admin dashboard
+name: Publish admin dashboard and app preview
 
 on:
   workflow_dispatch:
@@ -12,6 +14,8 @@ on:
     branches: [master]
     paths:
       - 'soul-sync/admin/**'
+      - 'soul-sync/app/**'
+      - 'soul-sync/shared/**'
       - '.github/workflows/admin-pages.yml'
 
 permissions:
@@ -41,11 +45,13 @@ jobs:
           version: latest
 
       - name: Write config.js with the public anon key
+        id: anon
         working-directory: soul-sync/admin
         run: |
           anon=$(supabase projects api-keys --project-ref "$SUPABASE_PROJECT_REF" -o json \
             | jq -r '[.[] | select(.name == "anon")][0].api_key')
           if [ -z "$anon" ] || [ "$anon" = "null" ]; then echo "::error::Could not read the anon key"; exit 1; fi
+          echo "key=$anon" >> "$GITHUB_OUTPUT"
           cat > config.js <<JS
           window.SOUL_SYNC_CONFIG = {
             supabaseUrl: 'https://$SUPABASE_PROJECT_REF.supabase.co',
@@ -54,9 +60,35 @@ jobs:
           JS
           node --check config.js
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: soul-sync/app/package-lock.json
+
+      - name: Build the app's web preview
+        working-directory: soul-sync/app
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://${{ env.SUPABASE_PROJECT_REF }}.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ steps.anon.outputs.key }}
+          EXPO_NO_TELEMETRY: '1'
+        run: |
+          npm ci
+          npx tsc --noEmit
+          npx expo export -p web --output-dir dist
+
+      - name: Assemble the site
+        run: |
+          mkdir -p site
+          cp -r soul-sync/admin/. site/
+          cp -r soul-sync/app/dist site/app
+          # Pages serves the root 404.html for unknown paths; the app's shell
+          # handles deep links like /app/today on reload.
+          cp site/app/index.html site/404.html
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: soul-sync/admin
+          path: site
 
       - id: deploy
         uses: actions/deploy-pages@v4
