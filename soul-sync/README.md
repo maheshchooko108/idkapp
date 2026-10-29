@@ -11,7 +11,7 @@ A daily integration companion. Each day it reads the user's **body** (wearable d
 | `app/` | React Native + Expo (SDK 58) app for iOS and Android: Onboarding → Today → Check-in → Patterns → You | `tsc` clean; Metro bundles for iOS and Android; `expo prebuild` generates HealthKit entitlement + Health Connect manifest |
 | `shared/` | Pure-TypeScript core shared by the app and the server: crisis screen, WHO-5, kind streaks, pattern finding, "did it help" learning, card schema and fallback, sleep merging | 17 unit tests |
 | `supabase/` | Postgres schema with row-level security, admin metrics, versioned engine prompt, and edge functions (`daily-card`, `push-cards`, `delete-account`) | Migration + RLS/metrics suite on real Postgres 16; functions pass `deno check` |
-| `astro/` | Small Python service: Swiss Ephemeris sidereal chart (Lahiri), Vimshottari dasha, daily transits | 10 tests (ayanamsa, nakshatra boundaries, dasha math, API auth) |
+| `astro/` | Optional Python service: Swiss Ephemeris sidereal chart (Lahiri), Vimshottari dasha, daily transits. Also the reference the in-process chart is tested against | 10 tests (ayanamsa, nakshatra boundaries, dasha math, API auth) |
 | `admin/` | Static admin dashboard: retention, check-in rate, completion, "it helped", WHO-5 change, session length, and the engine-prompt editor | `node --check` only; needs a live project to click through |
 
 **Not verified yet (needs your accounts and real phones):** an end-to-end run against a live Supabase project and the Anthropic API, HealthKit and Health Connect reads on physical devices, push delivery, and the EAS builds themselves.
@@ -33,7 +33,7 @@ A daily integration companion. Each day it reads the user's **body** (wearable d
 | HIG / Material 3 | Native tab bar (`expo-router` NativeTabs: UITabBar / Material nav bar), large titles, system fonts, light + dark, 44 pt targets, accessibility roles/labels/states throughout |
 | Permissions in context | Notifications asked from the "Turn on my daily card" button; health from "Connect Apple Health / Health Connect"; never at launch |
 | Real body data | `app/src/lib/health/index.ios.ts` (HealthKit) and `index.android.ts` (Health Connect): sleep, HRV, resting HR, steps |
-| Real Vedic chart | `astro/vedic.py`: Swiss Ephemeris, Lahiri ayanamsa, whole-sign houses, Vimshottari maha/antardasha, Moon and Saturn transits from natal Moon |
+| Real Vedic chart | `supabase/functions/_shared/vedic.ts` computes it inside the card engine (astronomy-engine, Lahiri ayanamsa, whole-sign houses, Vimshottari maha/antardasha, Moon and Saturn transits). `supabase/tests/vedic.test.ts` checks it against 400 Swiss Ephemeris charts from `astro/vedic.py`: planets within 0.01°, dasha dates within 2 days. Setting `ASTRO_URL` switches to the Swiss Ephemeris service |
 | Engine prompt in an admin field | `app_config.engine_prompt`, edited in `admin/`. Every save is versioned; cards record the version, and the dashboard shows "it helped" per version. Safety guardrails are appended in code and can't be edited away. |
 | WHO-5 at signup, then weekly | Onboarding baseline + weekly nudge on Today; charted per user and aggregated on the dashboard |
 | Crisis language → resources (988) | Screened on device *and* on the server before any card is generated (`shared/crisis.ts`, English + Spanish). Shows 988, Crisis Text Line, 911, findahelpline.com. |
@@ -48,7 +48,7 @@ A daily integration companion. Each day it reads the user's **body** (wearable d
 3. Authentication → Providers: enable **Anonymous sign-ins** and **Email**.
 4. Secrets for the functions:
    ```sh
-   supabase secrets set ANTHROPIC_API_KEY=sk-ant-... ASTRO_URL=https://<astro-host> ASTRO_API_KEY=<random> CRON_SECRET=<random>
+   supabase secrets set ANTHROPIC_API_KEY=sk-ant-... CRON_SECRET=<random>
    supabase functions deploy daily-card
    supabase functions deploy delete-account
    supabase functions deploy push-cards --no-verify-jwt
@@ -56,11 +56,12 @@ A daily integration companion. Each day it reads the user's **body** (wearable d
 5. Run `supabase/cron.sql` in the SQL editor (fill in the project ref and `CRON_SECRET`) to send the daily notifications.
 6. Make yourself an admin: `update profiles set is_admin = true where id = (select id from auth.users where email = 'you@example.com');` (create that user under Authentication → Users first, with a password).
 
-### 2. Astro service (Fly.io, Render or Railway; free or about $5/month)
+### 2. Astro service (optional)
+Cards compute the chart in-process, so this step is only needed if you want Swiss Ephemeris itself live. `.github/workflows/astro-deploy.yml` deploys it to Fly.io on demand (needs a `FLY_API_TOKEN` secret) and sets `ASTRO_URL` / `ASTRO_API_KEY` for you. To run it yourself:
 ```sh
 cd astro && docker build -t soul-sync-astro . && docker run -e ASTRO_API_KEY=<same random> -p 8080:8080 soul-sync-astro
 ```
-Deploy the same Dockerfile to your host and set `ASTRO_API_KEY`. Use the public URL as `ASTRO_URL` above.
+Deploy the same Dockerfile to your host, then `supabase secrets set ASTRO_URL=https://<astro-host> ASTRO_API_KEY=<same random>`.
 
 ### 3. App
 ```sh
@@ -89,6 +90,7 @@ You need an Apple Developer account ($99/yr) and a Google Play developer account
 cd shared && npm test                       # core logic (Node 22+)
 bash scripts/test-db.sh                     # migration + RLS + metrics on a throwaway Postgres 15+
 cd astro && pip install -r requirements.txt pytest httpx && pytest
+deno test --allow-read supabase/tests/vedic.test.ts  # in-process chart vs Swiss Ephemeris
 cd app && npx tsc --noEmit
 bash scripts/sync-shared.sh                 # after editing shared/*.ts (a test fails if you forget)
 ```
@@ -96,10 +98,10 @@ bash scripts/sync-shared.sh                 # after editing shared/*.ts (a test 
 ## Costs at pilot scale (50 users)
 - Supabase: free tier works. Pro ($25/mo) adds daily backups and avoids free-tier pausing, which is worth it once real people's data is in there.
 - LLM: default `claude-opus-5-5` at low effort is a few cents per card, so roughly $30–60/month for 50 daily users. Switching the model to `claude-haiku-5-5` in the dashboard cuts that by more than 10× if quality holds.
-- Astro service: $0–7/month. Apple $99/yr, Google $25 once.
+- Astro service: $0 by default (charts run inside Supabase); $0–7/month if you deploy the optional Swiss Ephemeris service. Apple $99/yr, Google $25 once.
 
 ## Things to decide before the pilot
-- **Swiss Ephemeris licence.** It is dual-licensed AGPL or commercial. Running it as a network service for a closed-source product needs the commercial licence (from Astrodienst) or open-sourcing `astro/`. Decide before launch, not after.
+- **Swiss Ephemeris licence.** Only matters if you deploy the optional `astro/` service: it is dual-licensed AGPL or commercial, so a closed-source product needs the commercial licence (from Astrodienst) or an open-source `astro/`. The default in-process chart uses astronomy-engine (MIT).
 - **What the pilot can prove.** With 20–50 self-selected users, no control group, and people who often join on a low week, WHO-5 will likely rise whatever the app does (regression to the mean). Present it to investors as feasibility and engagement data. For an efficacy *signal*, randomise half the pilot to cards without the timing layer: that is the question investors will actually ask.
 - **WHO-5 cadence.** The index asks about "the last two weeks", so weekly answers overlap. Weekly is implemented per the brief (`WHO5_RECHECK_DAYS`); 14 days is the cleaner choice.
 - **HRV.** Apple gives SDNN, Health Connect gives RMSSD. They aren't comparable across users; the app only compares each person with their own baseline and labels the method.

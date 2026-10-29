@@ -19,6 +19,7 @@ import { CRISIS_MESSAGE, CRISIS_RESOURCES, screenForCrisis } from './core/crisis
 import { addDays, localDate, weekdayName } from './core/dates.ts';
 import { categoryScores, learningNote, type ActionCategory, type FeedbackRow } from './core/learning.ts';
 import { findEchoes, recurringFeelings, type Checkin } from './core/patterns.ts';
+import { computeChart } from './vedic.ts';
 
 type Profile = {
   id: string;
@@ -45,25 +46,39 @@ export type StoredCard = {
 
 export type CrisisContent = { message: string; resources: typeof CRISIS_RESOURCES };
 
+/**
+ * The user's chart plus today's transits. Computed in-process (vedic.ts) by
+ * default; if ASTRO_URL is set, the Swiss Ephemeris service is used instead
+ * and the in-process chart is the fallback when it can't be reached.
+ */
 async function fetchTiming(p: Profile, onDate: string): Promise<{ summary: TimingSummary; raw: unknown } | null> {
+  if (!p.birth_date || p.birth_lat == null || p.birth_lon == null || !p.birth_tz) return null;
+  const input = {
+    birth_date: p.birth_date,
+    birth_time: p.birth_time_known ? p.birth_time : null,
+    tz: p.birth_tz,
+    lat: p.birth_lat,
+    lon: p.birth_lon,
+    on_date: onDate,
+  };
   const url = Deno.env.get('ASTRO_URL');
-  if (!url || !p.birth_date || p.birth_lat == null || p.birth_lon == null || !p.birth_tz) return null;
+  if (url) {
+    try {
+      const res = await fetch(`${url.replace(/\/$/, '')}/chart`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-astro-key': Deno.env.get('ASTRO_API_KEY') ?? '' },
+        body: JSON.stringify(input),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) throw new Error(`astro ${res.status}: ${await res.text()}`);
+      const raw = await res.json();
+      return { summary: raw as TimingSummary, raw };
+    } catch (e) {
+      console.error('astro service unavailable, computing the chart in-process', e);
+    }
+  }
   try {
-    const res = await fetch(`${url.replace(/\/$/, '')}/chart`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-astro-key': Deno.env.get('ASTRO_API_KEY') ?? '' },
-      body: JSON.stringify({
-        birth_date: p.birth_date,
-        birth_time: p.birth_time_known ? p.birth_time : null,
-        tz: p.birth_tz,
-        lat: p.birth_lat,
-        lon: p.birth_lon,
-        on_date: onDate,
-      }),
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) throw new Error(`astro ${res.status}: ${await res.text()}`);
-    const raw = await res.json();
+    const raw = computeChart(input);
     return { summary: raw as TimingSummary, raw };
   } catch (e) {
     console.error('timing unavailable, continuing without it', e);
