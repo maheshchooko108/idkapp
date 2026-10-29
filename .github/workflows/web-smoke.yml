@@ -1,13 +1,22 @@
-# Manual check of the published web preview against the live backend.
-# Read the results in the run's log.
+# Manual check of the published web preview against the live backend, in
+# Chrome's engine and in Safari's (WebKit, iPhone profile), plus the card
+# engine's recent error log. Read the results in the run's log.
 name: Web preview smoke test
 
 on:
   workflow_dispatch:
 
+env:
+  SUPABASE_PROJECT_REF: qzanlsxbaxlmmakvloge
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, webkit]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,7 +27,22 @@ jobs:
         run: |
           npm init -y >/dev/null
           npm i playwright@1 >/dev/null
-          npx playwright install --with-deps chromium >/dev/null
+          npx playwright install --with-deps ${{ matrix.engine }} >/dev/null
       - name: Walk onboarding on the live site
         working-directory: soul-sync/e2e
-        run: node live-smoke.mjs https://maheshchooko108.github.io/idkapp/app/
+        run: node live-smoke.mjs https://maheshchooko108.github.io/idkapp/app/ ${{ matrix.engine }}
+
+  engine-logs:
+    runs-on: ubuntu-latest
+    needs: smoke
+    if: always()
+    steps:
+      - name: Recent card-engine log lines (warnings and errors)
+        run: |
+          start=$(date -u -d '-2 hours' +%Y-%m-%dT%H:%M:%SZ)
+          sql="select timestamp, event_message from function_logs where metadata[0].level in ('error','warning') or event_message like '%fail%' order by timestamp desc limit 30"
+          curl -sS -G "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/analytics/endpoints/logs.all" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            --data-urlencode "iso_timestamp_start=$start" --data-urlencode "sql=$sql" > logs.json
+          jq -r '.result[]? | "\(.timestamp) \(.event_message)"' logs.json | cut -c1-600
+          echo "--- raw (first 1500 chars) ---"; head -c 1500 logs.json; echo
