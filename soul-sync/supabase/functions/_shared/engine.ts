@@ -167,7 +167,10 @@ export async function buildContext(db: SupabaseClient, profile: Profile, today: 
 
 async function askModel(ctx: EngineContext, cfg: Awaited<ReturnType<typeof loadConfig>>): Promise<DailyCard | null> {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
-  if (!apiKey) return null;
+  if (!apiKey) {
+    console.error('card generation skipped: ANTHROPIC_API_KEY is not set (Edge Functions → Secrets); using fallback card');
+    return null;
+  }
   const client = new Anthropic({ apiKey, timeout: 45_000, maxRetries: 1 });
   try {
     const response = await client.beta.messages.create({
