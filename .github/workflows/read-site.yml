@@ -9,8 +9,15 @@ on:
         description: Site to read
         default: https://soulsyncmode.com/
       pages:
-        description: Max pages
+        description: Max pages (read) or max steps (walk)
         default: '12'
+      mode:
+        description: read = page text; walk = click through the flow from the start button
+        default: read
+      start:
+        description: Start button text (walk mode)
+        default: "I'm Ready"
+
 
 jobs:
   read:
@@ -31,4 +38,8 @@ jobs:
         env:
           SITE_URL: ${{ inputs.url }}
           MAX_PAGES: ${{ inputs.pages }}
-        run: node read-site.mjs "$SITE_URL" "$MAX_PAGES"
+          MODE: ${{ inputs.mode }}
+          START: ${{ inputs.start }}
+        run: |
+          if [ "$MODE" = walk ]; then node walk-site.mjs "$SITE_URL" "$START" "$MAX_PAGES"
+          else node read-site.mjs "$SITE_URL" "$MAX_PAGES"; fi
