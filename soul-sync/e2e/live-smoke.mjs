@@ -2,12 +2,15 @@
 // backend, walks onboarding up to the first reading, and logs every console
 // message, failed request and Supabase response. Creates one anonymous test
 // user named "Smoke Test" per run.
-// Usage: node live-smoke.mjs https://maheshchooko108.github.io/idkapp/app/
-import { chromium } from 'playwright';
+// Usage: node live-smoke.mjs <url> [chromium|webkit]
+// webkit runs Safari's engine with an iPhone profile.
+import { chromium, devices, webkit } from 'playwright';
 
 const url = process.argv[2];
-const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+const engine = process.argv[3] ?? 'chromium';
+const browser = await (engine === 'webkit' ? webkit : chromium).launch();
+const page = await browser.newPage(engine === 'webkit' ? { ...devices['iPhone 15'] } : { viewport: { width: 390, height: 844 } });
+console.log(`engine: ${engine}`);
 const t0 = Date.now();
 const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
 page.on('console', (m) => log('console', m.type(), m.text().slice(0, 500)));
